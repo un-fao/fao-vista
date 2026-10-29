@@ -319,7 +319,7 @@ def main(step_override: str | None = None, statistic_override: str | None = None
     log("")
 
     try:
-        ee.Initialize()
+        ee.Initialize(project=settings["project_id"])
     except ee.EEException as exc:
         log(f"ERROR: Earth Engine initialisation failed: {exc}")
         log("       Run `earthengine authenticate` or set GOOGLE_APPLICATION_CREDENTIALS.")

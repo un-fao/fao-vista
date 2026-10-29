@@ -89,14 +89,42 @@ python -m jobs.run_phase3
 Select dekads and products in `config/config.yaml`; the comments next to each
 setting explain the accepted values.
 
+### Run order
+
+Phases 2 to 5 submit Earth Engine tasks and return before the tasks finish.
+Wait until every task of a step has completed (Tasks tab of the Earth Engine
+Code Editor, or `earthengine task list`) before starting the next step:
+
+1. Phase 1, then Pipeline B for the dekads Phase 1 logged as missing.
+2. Phase 2, until the ingestions have finished.
+3. Phase 3 with `statistic: count`, then `frequency` and `dominant`, which read
+   the count assets.
+4. Phase 3B, once every GeoTIFF tile of the selected products has been
+   exported.
+5. Phase 4, then Phase 5 with `statistic: count`, then `frequency` and
+   `dominant`.
+
+Earth Engine does not create parent folders. Before the first run with
+`dry_run: false`, create the asset folders each phase writes to (its dry run
+prints the asset roots) with `earthengine create folder -p <path>`.
+
+Phases 4 and 5 save only Earth Engine assets unless `run_control.export_gcs`
+is true; set it to produce the GeoTIFF files. `jobs.run_phase1_and_2` and
+`jobs.run_phase1_pipeB_and_2` run the local Phase 1 processing even when
+Phase 2 is in dry run.
+
 ## Scope and limitations
 
 - Classes 1, 2 and 3 record the observed water-fraction intensity of the
   source product (1-49%, 50-79% and 80-100%). They do not say that the water
   was unusual. Whether a frequency is exceptional depends on a threshold the
   user chooses against the historical frequency products.
-- A dekadal value is the maximum over the composites of that dekad, so a false
-  detection on any single day of the covered interval is kept.
+- A dekadal value combines the composites of that dekad by a fixed class
+  priority, not by the numeric maximum of the class codes:
+  3 > 2 > 1 > 6 > 5 > 4 > 10 > 11 > 9 > 0 (`DEKAD_AGGREGATION_PRIORITY` in
+  `core/phase1_local/process_dekad_composites.py`). A flood class (1, 2 or 3)
+  in any composite therefore wins over every other class, including permanent
+  water (11), and a false flood detection in a single composite is kept.
 - The dekads from January 2021 to August 2023 come from the GMU archive
   through Pipeline B, because distribution through the NOAA stream was
   interrupted over that period.
