@@ -1,0 +1,32 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite the version you used, together with the VISTA Data Descriptor."
+title: "VISTA: processing code for the VIIRS-based global flood frequency record"
+type: software
+authors:
+  - given-names: Andrea
+    family-names: Amparore
+  - given-names: Francesco
+    family-names: Collivignarelli
+  - given-names: Chloe
+    family-names: Campo
+  - given-names: Edoardo
+    family-names: Forzano
+  - given-names: Josef
+    family-names: Clifford
+repository-code: "https://github.com/un-fao/fao-vista"
+url: "https://diem-vista.web.app/"
+abstract: >-
+  Processing code for VISTA, the VIIRS Surface Water Temporal Atlas: a global
+  record of dekadal flood observations from 2012 to 2026, built from the
+  NOAA/GMU VIIRS flood product at about 375 m resolution, with historical
+  count, frequency and dominant-class products per dekad and per rolling
+  month, computed in Google Earth Engine.
+keywords:
+  - flood mapping
+  - surface water
+  - VIIRS
+  - remote sensing
+  - Google Earth Engine
+  - dekadal
+  - FAO
+license: MIT

@@ -1,0 +1,9 @@
+excluded_dekads:
+  - label: 202407d1
+    status: rejected
+    reason: >-
+      Provider observation-derived classes are displaced southward while the
+      permanent-water layer and GeoTIFF georeferencing remain correctly aligned.
+    provider_source_period: 2024-07-06/2024-07-10
+    provider_folder: 2024/07/06
+

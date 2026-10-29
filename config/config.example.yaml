@@ -1,0 +1,282 @@
+# Copy this file to config/config.yaml and edit it before running the pipeline.
+# config/config.yaml is ignored by git.
+#
+# Writable targets (GCP project, buckets, Earth Engine asset roots) are
+# placeholders. The published VISTA release lives in the GCP project fao-oer:
+#   Earth Engine: projects/fao-oer/assets/vista_dekadal_archive,
+#                 projects/fao-oer/assets/vista_monthly_archive,
+#                 projects/fao-oer/assets/vista_products
+#   Cloud Storage: gs://vista_project
+
+paths:
+  # Root output folder. The pipeline writes directly under this path, for example
+  # <data_root>/noaa_downloads and <data_root>/mosaic_classified_rasters.
+  data_root: /path/to/VISTA_processing
+
+phase1_local:
+  calendar_csv: data/calendars/viirs_dekads_2010_2040.csv
+  # Reclassification from NOAA VIIRS source values to project classes is defined in
+  # core/phase1_local/process_dekad_composites.py.
+  processing:
+    # Dekad IDs must be taken from the calendar file saved at:
+    # data/calendars/viirs_dekads_2010_2040.csv
+    # Examples: 1, "1-3", or "1-3, 8, 10-12"
+    dekad_ids:
+    # Leave empty for global processing.
+    # When more than one tile is selected, the pipeline downloads those tiles
+    # and mosaics them into a single output raster for each composite date.
+    # Examples: 1, "1-3", or "1-3, 8, 10-12" or '115,116'
+    tile_id:
+  housekeeping:
+    # Missing NOAA 5-day composites are appended over time to:
+    # <data_root>/missing_noaa_5day_composites_log.csv
+    # Files older than these thresholds are deleted after each pipeline run.
+    noaa_download_retention_days: 3
+    mosaic_classified_raster_retention_days: 3
+    # Global-run disk protection for long archive processing.
+    # When true and tile_id is empty, the pipeline deletes the intermediate
+    # NOAA download folders and global 5-day classified rasters for a dekad
+    # after that dekad's final raster has been produced. In run_phase1_and_2,
+    # cleanup happens after Phase 2 upload/verification for that dekad. This
+    # option is ignored for selected-tile runs, which continue to rely only on
+    # the retention settings above. Final dekadal rasters are never deleted.
+    cleanup_global_intermediates_after_dekad: true
+  aws:
+    bucket_prefix: s3://noaa-jpss/JPSS_Blended_Products/VFM_5day_GLB/TIF
+
+phase1_pipeB:
+  # Recovery workflow for dekads that the normal NOAA AWS 5-day pipeline could
+  # not produce because one or more composites were missing.
+  availability_log: availability_issues_log.csv
+  missing_log_filename: availability_issues_log_pipeB.csv
+  output_suffix: pipeB
+  # Local-only comparison override for python -m jobs.run_phase1_pipeB.
+  # When true, Pipeline B processes all dekads selected in
+  # phase1_local.processing.dekad_ids even if the normal NOAA pipeline did not
+  # log them as missing. Ignored by run_phase1_pipeB_and_2.
+  force_pipeline_b: false
+  source:
+    base_url: https://jpssflood.gmu.edu/downloads/pub/
+    listing_timeout_seconds: 30
+    download_timeout_seconds: 60
+  paths:
+    downloads_dirname: pipeB_downloads
+    mosaic_classified_rasters_dirname: pipeB_mosaic_classified_rasters
+
+phase2_gee:
+  gcp:
+    # GCP project used for both Google Cloud Storage access and Earth Engine
+    # CLI calls in Phase 2. It selects the matching entry under environments.
+    project_id: your-gcp-project
+  # Environment-specific Phase 2 targets, keyed by GCP project id.
+  # Published release: gs://vista_project/vista_dekadal_archive and
+  # projects/fao-oer/assets/vista_dekadal_archive.
+  environments:
+    your-gcp-project:
+      gcs:
+        bucket_name: your-bucket
+        prefix: vista_dekadal_archive
+      earth_engine:
+        asset_root: projects/your-gcp-project/assets/vista_dekadal_archive
+  gcs:
+    # Local-to-GCS upload tuning for large rasters or slow connections.
+    # Files are uploaded in chunks of this size. Smaller chunks can be more
+    # resilient on unstable networks; larger chunks may be faster on good links.
+    upload_chunk_size_mb: 50
+    # Per-request upload timeout in seconds. Increase this if GCS uploads fail
+    # with "The write operation timed out" on slow connections.
+    upload_timeout_seconds: 1200
+  earth_engine:
+    upload_sleep_seconds: 0
+  run_control:
+    # When true, Phase 2 prints the GCS and Earth Engine actions it would take
+    # but does not upload files or submit Earth Engine ingestions. It still
+    # checks whether existing GCS objects and Earth Engine assets are present.
+    dry_run: true
+    # When false, selected dekads with neither a final local raster nor the
+    # expected GCS object are logged and skipped so later dekads can still be
+    # uploaded. When true, Phase 2 raises FileNotFoundError on the first dekad
+    # missing both local and GCS source rasters.
+    strict_missing_rasters: false
+
+phase3_gee:
+  gcp:
+    # Select the Phase 3 environment. The matching Earth Engine roots and GCS
+    # bucket/prefix are resolved from phase3_gee.environments below.
+    project_id: your-gcp-project
+
+  # Selects which implementation to run.
+  # step: dekadal, with statistic count, frequency or dominant. The monthly
+  # step here is a deprecated stub: monthly products come from Phases 4 and 5.
+  step: dekadal
+  statistic: count
+
+  # Environment-specific Phase 3 targets, keyed by GCP project id.
+  # For each statistic, the script appends <step>/<statistic-folder> to the
+  # Earth Engine product root and <step>/<statistic-folder>/tiles to the GCS
+  # product root. Frequency outputs use the frequency folder; dominant outputs
+  # use the folder name dominant_class.
+  # Published release: projects/fao-oer/assets/vista_products and
+  # gs://vista_project/vista_products.
+  environments:
+    your-gcp-project:
+      archive_asset_root: projects/your-gcp-project/assets/vista_dekadal_archive
+      statistics_asset_root: projects/your-gcp-project/assets/vista_products
+      gcs:
+        bucket_name: your-bucket
+        prefix: vista_products
+
+  # Dekads to process.
+  # Use 'all' to process all 36 dekads, or an explicit list of keys:
+  #   dekads: all
+  #   dekads: [01d1, 01d2, 01d3]
+  dekads: all
+
+  # Year range to include when stacking annual observations.
+  # Override on the CLI with --year-start / --year-end.
+  year_start: 2012
+  year_end: 2030
+
+  run_control:
+    # Set to true to log planned exports without submitting any EE tasks.
+    dry_run: true
+
+    # Set to true to overwrite existing GCS files.
+    # When false, existing outputs are skipped.
+    # Existing Earth Engine assets are skipped regardless of this flag and
+    # must be deleted before regeneration.
+    overwrite: false
+
+phase3b_gcs:
+  # Phase 3B mosaics the GeoTIFF shards exported by Phase 3 from:
+  #   <gcs product root>/<step>/<statistic-folder>/tiles/
+  # into one final COG per product under:
+  #   <gcs product root>/<step>/<statistic-folder>/
+  # It inherits project_id, bucket, step, and statistic from phase3_gee.
+  products:
+    # Dekadal products to mosaic for the selected phase3_gee.step/statistic.
+    # Use 'all' for all 36 canonical dekads, or a comma-separated selection
+    # made of single dekads and inclusive ranges in calendar order.
+    #
+    # Examples:
+    #   selection: all
+    #   selection: "01d1"
+    #   selection: "01d1-06d3"                         # first 18 dekads of the year
+    #   selection: "01d1-03d3, 05d1, 06d1-06d3"
+    #   selection: [01d1, 01d2, 02d1-02d3]
+    selection: all
+  paths:
+    work_dirname: phase3b_mosaic_work
+  gcs:
+    upload_chunk_size_mb: 50
+    upload_timeout_seconds: 1200
+  run_control:
+    # When true, Phase 3B lists planned mosaics but does not download tiles,
+    # run GDAL, or upload final mosaics.
+    dry_run: true
+    # When false, existing final mosaics are skipped.
+    overwrite_final: false
+    # When false, one failed product is logged and later products continue.
+    stop_on_error: false
+
+phase4_monthly_archive:
+  # Phase 4 builds a centered 3-dekad rolling "monthly" archive from the
+  # dekadal archive. Each output is named for the center dekad.
+  # Published release: projects/fao-oer/assets/vista_monthly_archive and
+  # gs://vista_project/vista_monthly_archive/tiles.
+  source:
+    project_id: your-gcp-project
+    asset_root: projects/your-gcp-project/assets/vista_dekadal_archive
+  target:
+    project_id: your-gcp-project
+    asset_root: projects/your-gcp-project/assets/vista_monthly_archive
+    gcs:
+      bucket_name: your-bucket
+      prefix: vista_monthly_archive/tiles
+  center_dekads:
+    # Select which center dekads Phase 4 should build.
+    #
+    # mode: all
+    #   Builds every available center dekad in the source archive.
+    #   The single/start/end values below are ignored.
+    #
+    # mode: single
+    #   Builds only the center dekad named in single.
+    #   Example:
+    #     mode: single
+    #     single: 201405d1
+    #
+    # mode: range
+    #   Builds center dekads from start through end, inclusive.
+    #   Leave start empty to begin with the first available source dekad.
+    #   Leave end empty to continue through the last available source dekad.
+    #
+    # Center dekad labels use YYYYMMdD, where D is 1, 2, or 3.
+    # For a calendar date such as 2014-05-03, use 201405d1.
+    mode: all
+    single:
+    start:
+    end:
+  run_control:
+    # When true, Phase 4 lists planned monthly products without submitting
+    # Earth Engine asset or GCS export tasks.
+    dry_run: true
+    # When false, Phase 4 saves only Earth Engine assets and skips GeoTIFF
+    # exports to Cloud Storage.
+    export_gcs: false
+    # Earth Engine assets cannot be overwritten in place by export tasks; if an
+    # asset already exists it is skipped and must be deleted before regeneration.
+    # This flag controls GCS overwrite behavior.
+    overwrite: false
+    # A centered monthly product can be created from previous/current/following
+    # dekads when at least this many source dekads are available.
+    min_required_dekads: 2
+    # Optional test limit. Empty means every eligible product needing action is
+    # planned or submitted. Set to 2 or 3 for small test batches.
+    max_products_to_create:
+
+phase5_monthly_statistics:
+  # Phase 5 computes archive statistics from the Phase 4 rolling monthly
+  # archive. These are statistics over monthly archive classes, not over the
+  # raw dekadal archive.
+  runner:
+    # Earth Engine project used to run the computation. This can differ from
+    # the source and target projects if permissions allow it.
+    project_id: your-gcp-project
+  source:
+    project_id: your-gcp-project
+    monthly_asset_root: projects/your-gcp-project/assets/vista_monthly_archive
+  target:
+    project_id: your-gcp-project
+    statistics_asset_root: projects/your-gcp-project/assets/vista_products
+    gcs:
+      bucket_name: your-bucket
+      prefix: vista_products
+
+  # Supported values: count, frequency, dominant.
+  # Frequency and dominant require the matching Phase 5 count assets first.
+  statistic: count
+
+  # Source Phase 4 monthly archive years to include when building count assets.
+  # Frequency and dominant read existing count assets and ignore this range.
+  year_start: 2012
+  year_end: 2026
+
+  # Center dekads to process. Use 'all', a comma-separated selection with
+  # optional ranges, or a YAML list, for example:
+  #   center_dekads: all
+  #   center_dekads: "01d1"
+  #   center_dekads: "01d1-06d3"
+  #   center_dekads: [01d1, 01d2, 02d1-02d3]
+  center_dekads: all
+
+  run_control:
+    # When true, Phase 5 lists planned exports without submitting Earth Engine
+    # asset or GCS export tasks.
+    dry_run: true
+    # When false, Phase 5 saves only Earth Engine assets and skips GeoTIFF
+    # exports to Cloud Storage.
+    export_gcs: false
+    # Controls GCS overwrite behavior. Existing Earth Engine assets are skipped
+    # and must be deleted manually before regeneration.
+    overwrite: false

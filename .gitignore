@@ -1,0 +1,24 @@
+# Local configuration: copy config/config.example.yaml to config/config.yaml
+config/config.yaml
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Environments
+.env
+.venv/
+venv/
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Pipeline outputs written outside the repo by default; guard against local runs
+*.tif
+*.log
