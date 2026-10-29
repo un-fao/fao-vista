@@ -95,8 +95,13 @@ Phases 2 to 5 submit Earth Engine tasks and return before the tasks finish.
 Wait until every task of a step has completed (Tasks tab of the Earth Engine
 Code Editor, or `earthengine task list`) before starting the next step:
 
-1. Phase 1, then Pipeline B for the dekads Phase 1 logged as missing.
-2. Phase 2, until the ingestions have finished.
+1. Phase 1 and Phase 2 (`jobs.run_phase1_and_2`, or `jobs.run_phase1` then
+   `jobs.run_phase2`).
+2. Pipeline B with its own ingestion, `jobs.run_phase1_pipeB_and_2`, for the
+   dekads Phase 1 logged as missing. Standalone Phase 2 does not upload the
+   Pipeline B rasters (their file names end in `_pipeB`); if you ran
+   `jobs.run_phase1_pipeB` first, the combined runner reuses its local
+   rasters. Wait until both sets of ingestions have finished.
 3. Phase 3 with `statistic: count`, then `frequency` and `dominant`, which read
    the count assets.
 4. Phase 3B, once every GeoTIFF tile of the selected products has been
@@ -104,9 +109,17 @@ Code Editor, or `earthengine task list`) before starting the next step:
 5. Phase 4, then Phase 5 with `statistic: count`, then `frequency` and
    `dominant`.
 
-Earth Engine does not create parent folders. Before the first run with
-`dry_run: false`, create the asset folders each phase writes to (its dry run
-prints the asset roots) with `earthengine create folder -p <path>`.
+Earth Engine does not create parent folders, and even a dry run lists the
+folders a phase reads from and writes to. Before the first cloud run, dry or
+not, create the asset roots set in your `config/config.yaml`, for example:
+
+```bash
+earthengine --project your-gcp-project create folder -p projects/your-gcp-project/assets/vista_dekadal_archive
+```
+
+Do the same for the monthly archive and products roots, and for the output
+folders that Phases 3 and 5 print at the start of each run ("Statistics asset
+root").
 
 Phases 4 and 5 save only Earth Engine assets unless `run_control.export_gcs`
 is true; set it to produce the GeoTIFF files. `jobs.run_phase1_and_2` and
