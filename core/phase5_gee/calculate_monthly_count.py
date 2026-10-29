@@ -178,6 +178,7 @@ def process_center_dekad(
     if settings["export_gcs"]:
         submit_gcs_export(
             count_image,
+            project=settings["runner_project_id"],
             bucket=settings["export_bucket_name"],
             file_name_prefix=f"{settings['export_prefix']}/vista_count_monthly_{center_dekad}",
             crs=crs,

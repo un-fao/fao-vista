@@ -86,13 +86,13 @@ def resolve_projection(image: ee.Image) -> tuple[str, list[float]]:
     return proj["crs"], proj["transform"]
 
 
-def gcs_file_exists(bucket_name: str, blob_path: str) -> bool:
+def gcs_file_exists(bucket_name: str, blob_path: str, project: str | None = None) -> bool:
     """Return True if *blob_path* already exists in *bucket_name*."""
-    client = storage.Client()
+    client = storage.Client(project=project)
     return client.bucket(bucket_name).blob(blob_path).exists()
 
-def gcs_prefix_exists(bucket_name: str, prefix: str) -> list[str]:
-    client = storage.Client()
+def gcs_prefix_exists(bucket_name: str, prefix: str, project: str | None = None) -> list[str]:
+    client = storage.Client(project=project)
     blobs = client.bucket(bucket_name).list_blobs(prefix=prefix)
     return [b.name for b in blobs]
 
@@ -142,6 +142,7 @@ def submit_gcs_export(
     dry_run: bool,
     overwrite: bool = True,
     description: str = "export",
+    project: str | None = None,
 ) -> None:
     """
     Submit an EE-to-GCS export task (Cloud-Optimised GeoTIFF).
@@ -156,8 +157,10 @@ def submit_gcs_export(
     *overwrite* — if False and any matching files already exist, the export
     is skipped and the number of existing files is logged.
     *description* is the human-readable task name shown in the EE task console.
+    *project* is the Google Cloud project for the Cloud Storage listing; pass the
+    configured project so it does not depend on the credentials' default.
     """
-    existing = gcs_prefix_exists(bucket, file_name_prefix)
+    existing = gcs_prefix_exists(bucket, file_name_prefix, project=project)
     n_existing = len(existing)
     if dry_run:
         if n_existing:

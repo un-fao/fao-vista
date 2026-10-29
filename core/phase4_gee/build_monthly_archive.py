@@ -498,7 +498,7 @@ def process_window(window: MonthlyWindow, settings: Phase4Settings) -> bool:
     gcs_prefix = output_gcs_prefix(settings, window)
     existing_asset = asset_exists(asset_id)
     existing_gcs_files = (
-        gcs_prefix_exists(settings.target_bucket_name, gcs_prefix)
+        gcs_prefix_exists(settings.target_bucket_name, gcs_prefix, project=settings.target_project_id)
         if settings.export_gcs
         else []
     )
@@ -556,6 +556,7 @@ def process_window(window: MonthlyWindow, settings: Phase4Settings) -> bool:
     if needs_gcs:
         submit_gcs_export(
             image,
+            project=settings.target_project_id,
             bucket=settings.target_bucket_name,
             file_name_prefix=gcs_prefix,
             crs=crs,

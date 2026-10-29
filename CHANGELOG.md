@@ -10,5 +10,7 @@
 - Phase 3 now initialises Earth Engine with `phase3_gee.gcp.project_id`
   instead of the default project of the user's credentials. Asset and bucket
   paths already came from the configuration, so outputs do not change.
+- Phases 3, 4 and 5 list existing Cloud Storage exports under their configured
+  project instead of the credentials' default project. Outputs do not change.
 - New tests for the dekadal class-priority rule. The README now states that
   rule and the order in which the phases must run.

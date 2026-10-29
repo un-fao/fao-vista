@@ -284,6 +284,7 @@ def process_dekad(
     # ── GCS export ─────────────────────────────────────────────────────────
     submit_gcs_export(
         count_image,
+        project=settings["project_id"],
         bucket=bucket,
         file_name_prefix=f"{gcs_prefix}/vista_count_{dekad}",
         crs=crs,

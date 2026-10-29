@@ -234,6 +234,7 @@ def process_dekad(
 
     submit_gcs_export(
         frequency_image,
+        project=settings["project_id"],
         bucket=bucket,
         file_name_prefix=f"{gcs_prefix}/vista_frequency_{dekad}",
         crs=crs,

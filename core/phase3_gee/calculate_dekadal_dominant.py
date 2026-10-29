@@ -280,6 +280,7 @@ def process_dekad(
 
     submit_gcs_export(
         dominant_image,
+        project=settings["project_id"],
         bucket=bucket,
         file_name_prefix=f"{gcs_prefix}/vista_dominant_class_{dekad}",
         crs=crs,
